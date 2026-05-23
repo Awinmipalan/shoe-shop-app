@@ -1,20 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useCart } from '../context/CartContext';
-import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag, Wallet, MessageSquare, ExternalLink, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { CONTACT_PHONE, MERCHANT_WALLET } from '../config';
+import { CONTACT_PHONE } from '../config';
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, cartTotal, cartCount } = useCart();
   const navigate = useNavigate();
-
-  // Checkout states
-  const [checkoutMethod, setCheckoutMethod] = useState<'whatsapp' | 'crypto'>('whatsapp');
-  const [walletAddress, setWalletAddress] = useState<string>('');
-  const [walletError, setWalletError] = useState<string>('');
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
-  const [transactionHash, setTransactionHash] = useState<string>('');
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
@@ -31,80 +23,6 @@ export default function Cart() {
     message += `*Total Amount:* ₦${cartTotal.toLocaleString()}`;
 
     window.open(`https://wa.me/${CONTACT_PHONE}?text=${message}`, '_blank');
-  };
-
-  const connectWallet = async () => {
-    setWalletError('');
-    setIsConnecting(true);
-    try {
-      const provider = (window as any).ethereum;
-      if (!provider) {
-        throw new Error("NoWeb3Provider");
-      }
-      
-      const accounts = await provider.request({ method: 'eth_requestAccounts' });
-      if (accounts && accounts.length > 0) {
-        setWalletAddress(accounts[0]);
-      } else {
-        throw new Error("NoAccountsFound");
-      }
-    } catch (err: any) {
-      console.error("MetaMask connection error:", err);
-      // Under sandboxed iframes, window.ethereum calls may fail with message or code restrictions
-      if (err.message === "NoWeb3Provider") {
-        setWalletError("MetaMask extension not found. Please install the MetaMask extension or check if it's disabled.");
-      } else if (err.code === 4001) {
-        setWalletError("Connection request was rejected. Please open MetaMask and click connect.");
-      } else {
-        setWalletError(
-          "Connection failed. Since you are in the AI Studio preview window, MetaMask may be blocked by iframe sandboxing. Click 'Open in New Tab' at the top-right and try again!"
-        );
-      }
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const processCryptoPayment = async () => {
-    if (!walletAddress) return;
-    setWalletError('');
-    setIsConnecting(true);
-    try {
-      const provider = (window as any).ethereum;
-      if (!provider) throw new Error("NoWeb3Provider");
-
-      // Demo merchant wallet address
-      const merchantAddress = MERCHANT_WALLET;
-      
-      // Calculate total amount in ETH (1 ₦ = 0.0000002 ETH approx ratio)
-      const ethVal = Math.max(0.001, parseFloat((cartTotal / 5000000).toFixed(4)));
-      const hexValue = "0x" + Math.round(ethVal * 1e18).toString(16);
-
-      const transactionParameters = {
-        to: merchantAddress,
-        from: walletAddress,
-        value: hexValue,
-      };
-
-      const txHash = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [transactionParameters],
-      });
-
-      setTransactionHash(txHash);
-      setPaymentSuccess(true);
-    } catch (err: any) {
-      console.error("MetaMask transaction error:", err);
-      if (err.code === 4001) {
-        setWalletError("The transaction was rejected in MetaMask.");
-      } else {
-        setWalletError(
-          err.message || "Failed to submit transaction. Verify your MetaMask balance and try again."
-        );
-      }
-    } finally {
-      setIsConnecting(false);
-    }
   };
 
   return (
@@ -202,7 +120,7 @@ export default function Cart() {
                   </div>
                   <div className="flex justify-between text-white/80">
                     <span>Shipping</span>
-                    <span className="font-['DM_Mono']">{checkoutMethod === 'whatsapp' ? 'Calculated on WhatsApp' : 'Calculated in transaction'}</span>
+                    <span className="font-['DM_Mono']">Calculated on WhatsApp</span>
                   </div>
                 </div>
                 
@@ -213,142 +131,17 @@ export default function Cart() {
                   </div>
                 </div>
 
-                {/* Choose Checkout Option */}
-                <div className="mb-6">
-                  <label className="text-white/40 text-xs font-['DM_Mono'] uppercase tracking-widest block mb-3">
-                    Choose Payment Method
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCheckoutMethod('whatsapp');
-                        setWalletError('');
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        checkoutMethod === 'whatsapp'
-                          ? 'border-[#FF4D00] bg-[#FF4D00]/5 text-white'
-                          : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <MessageSquare size={18} className="mb-1" />
-                      <span className="text-xs uppercase font-bold tracking-wider">WhatsApp</span>
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCheckoutMethod('crypto');
-                        setWalletError('');
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        checkoutMethod === 'crypto'
-                          ? 'border-[#FF4D00] bg-[#FF4D00]/5 text-white'
-                          : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Wallet size={18} className="mb-1" />
-                      <span className="text-xs uppercase font-bold tracking-wider">MetaMask</span>
-                    </button>
-                  </div>
+                <div className="space-y-4">
+                  <button 
+                    onClick={handleCheckout}
+                    className="w-full bg-[#25D366] text-black font-bold py-4 rounded-xl hover:bg-[#20ba59] transition-colors uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                  >
+                    <MessageSquare size={18} /> ORDER VIA WHATSAPP
+                  </button>
+                  <p className="text-center text-[11px] text-white/40 mt-4 font-['DM_Mono']">
+                    You will be redirected to WhatsApp to complete your order securely.
+                  </p>
                 </div>
-
-                {/* Render WhatsApp and Web3 Actions */}
-                {checkoutMethod === 'whatsapp' ? (
-                  <>
-                    <button 
-                      onClick={handleCheckout}
-                      className="w-full bg-[#25D366] text-black font-bold py-4 rounded-xl hover:bg-[#20ba59] transition-colors uppercase tracking-widest text-sm flex items-center justify-center gap-2"
-                    >
-                      <MessageSquare size={18} /> ORDER VIA WHATSAPP
-                    </button>
-                    <p className="text-center text-[11px] text-white/40 mt-4 font-['DM_Mono']">
-                      You will be redirected to WhatsApp to complete your order securely.
-                    </p>
-                  </>
-                ) : (
-                  <div className="space-y-4">
-                    {paymentSuccess ? (
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center">
-                        <CheckCircle className="text-green-400 mx-auto mb-2" size={32} />
-                        <h4 className="text-sm font-bold text-green-400 uppercase tracking-widest mb-1">Payment Completed!</h4>
-                        <p className="text-xs text-white/60 mb-2">Your kicks order has been authenticated on the blockchain.</p>
-                        {transactionHash && (
-                          <div className="bg-[#222] p-2 rounded text-[10px] text-white/40 select-all font-['DM_Mono'] break-all">
-                            TX: {transactionHash}
-                          </div>
-                        )}
-                        <button
-                          onClick={() => {
-                            setPaymentSuccess(false);
-                            setTransactionHash('');
-                          }}
-                          className="mt-3 text-xs uppercase font-bold tracking-wider text-[#FF4D00] hover:underline"
-                        >
-                          Make New Transaction
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        {walletAddress ? (
-                          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-xs text-white/40 font-['DM_Mono']">WALLET CONNECTED</span>
-                              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                            </div>
-                            <div className="font-['DM_Mono'] text-xs text-[#FF4D00] truncate bg-black/40 p-2 rounded">
-                              {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}
-                            </div>
-                            <div className="mt-3 flex justify-between text-xs text-white/60">
-                              <span>Estimated Cost</span>
-                              <span className="font-bold text-white font-['DM_Mono']">
-                                ~{(cartTotal / 5000000).toFixed(4)} ETH
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-xs text-white/60 space-y-2">
-                            <span className="font-bold text-white block uppercase tracking-wider">Metamask Web3 Payment</span>
-                            <p>You can pay instantly using Ethereum via your browser extension wallet.</p>
-                          </div>
-                        )}
-
-                        {walletError && (
-                          <div className="bg-red-400/10 border border-red-400/20 text-red-400 p-4 rounded-xl text-xs space-y-2 leading-relaxed">
-                            <p className="font-bold">⚠️ MetaMask Connection Hint:</p>
-                            <p>{walletError}</p>
-                            <a
-                              href={window.location.href}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-white hover:underline mt-1 bg-white/10 px-2.5 py-1.5 rounded"
-                            >
-                              Open in New Tab <ExternalLink size={12} />
-                            </a>
-                          </div>
-                        )}
-
-                        {!walletAddress ? (
-                          <button
-                            onClick={connectWallet}
-                            disabled={isConnecting}
-                            className="w-full bg-[#FF4D00] text-white font-bold py-4 rounded-xl hover:bg-[#e04300] transition-colors uppercase tracking-widest text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            <Wallet size={18} /> {isConnecting ? 'Connecting...' : 'Connect MetaMask'}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={processCryptoPayment}
-                            disabled={isConnecting}
-                            className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-white/90 transition-colors uppercase tracking-widest text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            <ShoppingBag size={18} /> {isConnecting ? 'Processing...' : 'Pay with MetaMask'}
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </div>
